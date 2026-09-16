@@ -127,6 +127,16 @@ tr:last-child td{border-bottom:none;}
 </style>
 </head>
 <body>
+<div id="login-overlay" style="position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px;width:320px;max-width:90vw;">
+    <div style="font-size:16px;font-weight:700;margin-bottom:2px;">➕ MedTrack</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:16px;">Sign in to your pharmacy ERP</div>
+    <div class="form-row"><label>Email</label><input id="login-email" type="email" style="width:100%;" placeholder="you@example.com"></div>
+    <div class="form-row"><label>Password</label><input id="login-pass" type="password" style="width:100%;" placeholder="••••••••"></div>
+    <div id="login-error" style="color:var(--red);font-size:11px;margin-bottom:8px;display:none;"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
 <h2 class="sr-only">MedTrack pharmacy ERP: dashboard, inventory with batch and expiry tracking, point of sale, sales history, reports, suppliers</h2>
 <div class="app">
   <div class="sidebar">
@@ -285,6 +295,7 @@ tr:last-child td{border-bottom:none;}
 <!-- Firebase (compat SDK — works with plain <script> tags, no bundler needed) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 
 <script>
 /* ============================================================
@@ -301,6 +312,28 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const fdb = firebase.firestore();
+const fauth = firebase.auth();
+
+function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-error');
+  errEl.style.display='none';
+  fauth.signInWithEmailAndPassword(email, pass).catch(e=>{
+    errEl.textContent = e.code==='auth/invalid-credential' ? 'Wrong email or password.' : e.message;
+    errEl.style.display='block';
+  });
+}
+
+fauth.onAuthStateChanged(user=>{
+  const overlay=document.getElementById('login-overlay');
+  if(user){
+    overlay.style.display='none';
+    if(!firestoreReady){ firestoreReady=true; startApp(); }
+  } else {
+    overlay.style.display='flex';
+  }
+});
 const PRODUCTS_COL = fdb.collection('products');
 const SUPPLIERS_COL = fdb.collection('suppliers');
 const SALES_COL = fdb.collection('sales');
@@ -379,7 +412,9 @@ function showConnError(){
   if(el) el.textContent='⚠ Firebase connection error — check your config & Firestore rules';
 }
 
-seedIfEmpty().then(initFirestoreListeners).catch(e=>{ console.error('seed failed', e); showConnError(); initFirestoreListeners(); });
+function startApp(){
+  seedIfEmpty().then(initFirestoreListeners).catch(e=>{ console.error('seed failed', e); showConnError(); initFirestoreListeners(); });
+}
 
 function fmt(n){ return '৳'+Number(n).toLocaleString('en-BD',{maximumFractionDigits:2}); }
 function daysUntil(dateStr){
