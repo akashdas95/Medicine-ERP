@@ -229,6 +229,9 @@ tbody tr:hover{background:var(--surface2);}
   </div>
 
   <div class="main">
+    <div id="offline-banner" style="display:none;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:12px;">
+      ⚠ You're offline — changes are being saved on this device and will sync automatically once you're back online.
+    </div>
     <!-- DASHBOARD -->
     <div class="page active" id="page-dash">
       <div class="page-header">
@@ -391,6 +394,15 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const fdb = firebase.firestore();
+/* Offline support: cache data locally and auto-sync when back online.
+   synchronizeTabs lets it work even if opened in multiple browser tabs. */
+fdb.enablePersistence({synchronizeTabs:true}).catch(err=>{
+  if(err.code==='failed-precondition'){
+    console.warn('Offline persistence: multiple tabs open without sync support.');
+  } else if(err.code==='unimplemented'){
+    console.warn('Offline persistence not supported in this browser.');
+  }
+});
 const fauth = firebase.auth();
 
 function doLogin(){
@@ -483,6 +495,16 @@ async function seedIfEmpty(){
 }
 
 let unsubProducts=null, unsubSuppliers=null, unsubSales=null;
+
+/* Show/hide the offline banner based on the browser's connection state */
+function updateNetStatus(){
+  const banner=document.getElementById('offline-banner');
+  if(!banner) return;
+  banner.style.display = navigator.onLine ? 'none' : 'block';
+}
+window.addEventListener('online', updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+updateNetStatus();
 
 function initFirestoreListeners(){
   unsubProducts = PRODUCTS_COL.onSnapshot(snap=>{
