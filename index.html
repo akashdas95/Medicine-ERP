@@ -292,7 +292,13 @@ tbody tr:hover{background:var(--surface2);}
           <div id="cart-body"><div class="empty">Cart is empty</div></div>
           <hr style="border:none;border-top:1px solid var(--border);margin:10px 0;">
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Subtotal</span><span id="sub-val">৳0</span></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:8px;"><span>Discount (৳)</span><input id="disc-val" type="number" min="0" style="width:90px;" oninput="renderCart()" placeholder="0"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:8px;">
+            <span>Discount (%)</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span id="disc-amt-preview" style="font-size:10px;color:var(--text3);"></span>
+              <input id="disc-val" type="number" min="0" max="100" step="0.1" style="width:70px;" oninput="renderCart()" placeholder="0">
+            </div>
+          </div>
           <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:10px;"><span>Total</span><span id="total-val">৳0</span></div>
           <div style="margin-bottom:10px;">
             <div style="font-size:11px;color:var(--text2);margin-bottom:5px;">Payment method</div>
@@ -482,7 +488,7 @@ function initFirestoreListeners(){
   }, err=>{ console.error('suppliers listener error', err); showConnError(); });
 
   SALES_COL.orderBy('date','desc').onSnapshot(snap=>{
-    sales = snap.docs.map(d=>({invoice:d.id, ...d.data()}));
+    sales = snap.docs.map(d=>{ const data=d.data(); return {id:d.id, invoice:data.invoiceNo||d.id, ...data}; });
     rerenderActivePage();
   }, err=>{ console.error('sales listener error', err); showConnError(); });
 }
@@ -732,15 +738,18 @@ function renderCart(){
     }).join('');
   }
   const sub = cart.reduce((a,c)=>{ const p=products.find(x=>x.id===c.id); return a+(p?p.price*c.qty:0); },0);
-  const disc = parseFloat(document.getElementById('disc-val').value)||0;
+  const discPct = Math.min(100, Math.max(0, parseFloat(document.getElementById('disc-val').value)||0));
+  const disc = sub*discPct/100;
   const total = Math.max(0, sub-disc);
   document.getElementById('sub-val').textContent=fmt(sub);
   document.getElementById('total-val').textContent=fmt(total);
+  document.getElementById('disc-amt-preview').textContent = disc>0 ? '-'+fmt(disc) : '';
 }
 async function checkout(){
   if(cart.length===0){ alert('Cart is empty.'); return; }
   const sub = cart.reduce((a,c)=>{ const p=products.find(x=>x.id===c.id); return a+(p?p.price*c.qty:0); },0);
-  const disc = parseFloat(document.getElementById('disc-val').value)||0;
+  const discPct = Math.min(100, Math.max(0, parseFloat(document.getElementById('disc-val').value)||0));
+  const disc = sub*discPct/100;
   const total = Math.max(0, sub-disc);
   const items = cart.map(c=>{ const p=products.find(x=>x.id===c.id); return {id:p.id,name:p.name,qty:c.qty,price:p.price}; });
   const curPayMethod = payMethod;
@@ -751,14 +760,22 @@ async function checkout(){
       if(p) batch.update(PRODUCTS_COL.doc(it.id), { stock: Math.max(0, p.stock-it.qty) });
     });
     const saleRef = SALES_COL.doc();
-    batch.set(saleRef, { date:new Date().toISOString(), items, sub, disc, total, payMethod: curPayMethod });
+    const invoiceNo = genInvoiceNo();
+    batch.set(saleRef, { invoiceNo, date:new Date().toISOString(), items, sub, discPct, disc, total, payMethod: curPayMethod });
     await batch.commit();
-    showReceipt(saleRef.id, items, sub, disc, total, curPayMethod);
+    showReceipt(invoiceNo, items, sub, disc, total, curPayMethod, discPct);
     resetPOS();
   }catch(e){ alert('Checkout failed to save to Firebase: '+e.message); }
 }
-function showReceipt(inv, items, sub, disc, total, payM){
+function genInvoiceNo(){
+  let code;
+  do{ code = 'INV'+Math.floor(100000+Math.random()*900000); }
+  while(sales.some(s=>s.invoice===code));
+  return code;
+}
+function showReceipt(inv, items, sub, disc, total, payM, discPct){
   const pm = payM || payMethod;
+  const discLabel = discPct ? `Discount (${discPct}%)` : 'Discount';
   const body = `
     <div class="receipt" id="print-area">
       <div style="text-align:center;font-weight:700;font-size:13px;">MedTrack Pharmacy</div>
@@ -768,7 +785,7 @@ function showReceipt(inv, items, sub, disc, total, payM){
       ${items.map(it=>`<div class="rline"><span>${it.name} x${it.qty}</span><span>${fmt(it.price*it.qty)}</span></div>`).join('')}
       <hr>
       <div class="rline"><span>Subtotal</span><span>${fmt(sub)}</span></div>
-      <div class="rline"><span>Discount</span><span>-${fmt(disc)}</span></div>
+      <div class="rline"><span>${discLabel}</span><span>-${fmt(disc)}</span></div>
       <div class="rline" style="font-weight:700;"><span>Total</span><span>${fmt(total)}</span></div>
       <div class="rline"><span>Payment</span><span>${pm}</span></div>
       <hr>
@@ -789,13 +806,13 @@ function renderSales(){
       <td>${s.items.reduce((a,i)=>a+i.qty,0)} items</td>
       <td style="text-transform:capitalize;">${s.payMethod}</td>
       <td style="font-weight:600;">${fmt(s.total)}</td>
-      <td><button class="btn btn-secondary btn-sm" onclick="showSaleDetail('${s.invoice}')">View</button></td>
+      <td><button class="btn btn-secondary btn-sm" onclick="showSaleDetail('${s.id}')">View</button></td>
     </tr>
   `).join('') : `<tr><td colspan="6" class="empty">No sales recorded yet</td></tr>`;
 }
-function showSaleDetail(invoice){
-  const s=sales.find(x=>x.invoice===invoice); if(!s)return;
-  showReceipt(s.invoice, s.items, s.sub, s.disc, s.total, s.payMethod);
+function showSaleDetail(id){
+  const s=sales.find(x=>x.id===id); if(!s)return;
+  showReceipt(s.invoice, s.items, s.sub, s.disc, s.total, s.payMethod, s.discPct);
 }
 
 /* ---------- REPORTS ---------- */
