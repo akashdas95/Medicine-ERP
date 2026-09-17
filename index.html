@@ -409,12 +409,18 @@ function doLogout(){
 
 fauth.onAuthStateChanged(user=>{
   const overlay=document.getElementById('login-overlay');
+  const connEl=document.getElementById('conn-status');
   if(user){
     overlay.style.display='none';
+    if(connEl) connEl.textContent='';
     document.getElementById('user-name').textContent = user.email || 'Signed in';
     document.getElementById('user-avatar').textContent = (user.email||'?').slice(0,2).toUpperCase();
     if(!firestoreReady){ firestoreReady=true; startApp(); }
   } else {
+    firestoreReady=false;
+    detachFirestoreListeners();
+    products=[]; suppliers=[]; sales=[];
+    if(connEl) connEl.textContent='';
     overlay.style.display='flex';
     document.getElementById('login-email').value='';
     document.getElementById('login-pass').value='';
@@ -476,21 +482,29 @@ async function seedIfEmpty(){
   }
 }
 
+let unsubProducts=null, unsubSuppliers=null, unsubSales=null;
+
 function initFirestoreListeners(){
-  PRODUCTS_COL.onSnapshot(snap=>{
+  unsubProducts = PRODUCTS_COL.onSnapshot(snap=>{
     products = snap.docs.map(d=>({id:d.id, ...d.data()}));
     rerenderActivePage();
-  }, err=>{ console.error('products listener error', err); showConnError(); });
+  }, err=>{ if(firestoreReady){ console.error('products listener error', err); showConnError(); } });
 
-  SUPPLIERS_COL.onSnapshot(snap=>{
+  unsubSuppliers = SUPPLIERS_COL.onSnapshot(snap=>{
     suppliers = snap.docs.map(d=>({id:d.id, ...d.data()}));
     rerenderActivePage();
-  }, err=>{ console.error('suppliers listener error', err); showConnError(); });
+  }, err=>{ if(firestoreReady){ console.error('suppliers listener error', err); showConnError(); } });
 
-  SALES_COL.orderBy('date','desc').onSnapshot(snap=>{
+  unsubSales = SALES_COL.orderBy('date','desc').onSnapshot(snap=>{
     sales = snap.docs.map(d=>{ const data=d.data(); return {id:d.id, invoice:data.invoiceNo||d.id, ...data}; });
     rerenderActivePage();
-  }, err=>{ console.error('sales listener error', err); showConnError(); });
+  }, err=>{ if(firestoreReady){ console.error('sales listener error', err); showConnError(); } });
+}
+
+function detachFirestoreListeners(){
+  if(unsubProducts){ unsubProducts(); unsubProducts=null; }
+  if(unsubSuppliers){ unsubSuppliers(); unsubSuppliers=null; }
+  if(unsubSales){ unsubSales(); unsubSales=null; }
 }
 
 function showConnError(){
