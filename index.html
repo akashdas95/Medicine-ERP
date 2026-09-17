@@ -34,7 +34,7 @@
   --sidebar-bg:#05080d;--sidebar-border:#1b2536;--sidebar-text:#8c98ab;--sidebar-text-hover:#f2f5f9;
   --shadow:0 1px 2px rgba(0,0,0,.4);
 }
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
 h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
 .app{display:grid;grid-template-columns:212px 1fr;min-height:100vh;background:var(--bg);}
 .sidebar{background:var(--sidebar-bg);border-right:1px solid var(--sidebar-border);display:flex;flex-direction:column;justify-content:space-between;position:sticky;top:0;height:100vh;}
@@ -43,6 +43,7 @@ h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,
 .brand-icon{font-size:19px;}
 .brand-name{font-size:14px;font-weight:700;color:var(--sidebar-text-hover);}
 .brand-sub{font-size:10px;color:var(--sidebar-text);font-family:'DM Mono',monospace;letter-spacing:.03em;}
+.mobile-logout-btn{display:none;}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--rs);color:var(--sidebar-text);text-decoration:none;font-size:12.5px;cursor:pointer;transition:background .12s,color .12s;border:none;background:none;width:100%;text-align:left;margin-bottom:2px;}
 .nav-item:hover{background:rgba(255,255,255,.06);color:var(--sidebar-text-hover);}
 .nav-item.active{background:var(--accent);color:#fff;font-weight:600;}
@@ -141,15 +142,18 @@ tbody tr:hover{background:var(--surface2);}
 @media (max-width:860px){
   .app{grid-template-columns:1fr;}
   .sidebar{
-    position:sticky;top:0;z-index:20;height:auto;width:100%;
-    flex-direction:row;align-items:center;justify-content:flex-start;
+    position:sticky;top:0;z-index:20;height:auto;width:100%;min-width:0;
+    flex-direction:column;align-items:stretch;
     border-right:none;border-bottom:1px solid var(--sidebar-border);
   }
-  .sidebar-top{display:flex;align-items:center;gap:2px;padding:.5rem .6rem;margin-bottom:0;overflow-x:auto;flex:1;}
-  .brand{margin-bottom:0;flex-shrink:0;padding-right:10px;margin-right:6px;border-right:1px solid var(--sidebar-border);}
+  .sidebar-top{display:flex;flex-wrap:wrap;align-items:center;padding:0;margin-bottom:0;gap:0;}
+  .brand{flex:1 0 100%;margin-bottom:0;padding:.5rem .75rem;border-bottom:1px solid var(--sidebar-border);}
   .brand-sub{display:none;}
-  .nav-item{width:auto;flex-shrink:0;flex-direction:column;gap:2px;padding:6px 10px;margin-bottom:0;font-size:9.5px;white-space:nowrap;}
+  .nav-item{flex:1 1 0;min-width:0;width:auto;flex-direction:column;gap:2px;padding:6px 3px;margin-bottom:0;font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;justify-content:center;}
   .nav-icon{font-size:16px;}
+  .brand{justify-content:space-between;}
+  .mobile-logout-btn{display:inline-flex;align-items:center;justify-content:center;background:none;border:1px solid var(--sidebar-border);color:var(--sidebar-text);cursor:pointer;font-size:14px;width:26px;height:26px;border-radius:6px;flex-shrink:0;}
+  .mobile-logout-btn:hover{color:var(--sidebar-text-hover);border-color:var(--sidebar-text);}
   .sidebar-bottom{display:none;}
   .main{padding:1rem;}
   .grid-kpi{grid-template-columns:repeat(2,1fr);}
@@ -171,6 +175,27 @@ tbody tr:hover{background:var(--surface2);}
   .days-toggle{display:grid;grid-template-columns:repeat(4,1fr);}
   .days-toggle .btn{justify-content:center;}
 }
+
+@media (max-width:420px){
+  .main{padding:.75rem;}
+  .grid-kpi{grid-template-columns:1fr;gap:7px;}
+  .kpi{padding:10px 12px;}
+  .kpi-val{font-size:16px;}
+  .kpi-label{font-size:11px;}
+  .page-title{font-size:16px;}
+  .page-sub{font-size:11px;}
+  .card{padding:12px;}
+  .card-title{font-size:12.5px;}
+  .btn{padding:6px 10px;font-size:11.5px;}
+  .nav-item{padding:5px 8px;font-size:9px;}
+  .nav-icon{font-size:14px;}
+  .brand-name{font-size:13px;}
+  .tiles{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));}
+  .modal-box{padding:14px;}
+  .quick-actions-grid{grid-template-columns:1fr 1fr;}
+  table{font-size:11px;}
+  th,td{padding:6px 5px;}
+}
 </style>
 </head>
 <body>
@@ -188,7 +213,7 @@ tbody tr:hover{background:var(--surface2);}
 <div class="app">
   <div class="sidebar">
     <div class="sidebar-top">
-      <div class="brand"><span class="brand-icon">➕</span><div><div class="brand-name">MedTrack</div><div class="brand-sub">PHARMACY ERP</div></div></div>
+      <div class="brand"><span class="brand-icon">➕</span><div><div class="brand-name">MedTrack</div><div class="brand-sub">PHARMACY ERP</div></div><button class="mobile-logout-btn" onclick="doLogout()" title="Log out">⎋</button></div>
       <button class="nav-item active" onclick="nav(this,'dash')"><span class="nav-icon">◈</span>Dashboard</button>
       <button class="nav-item" onclick="nav(this,'inv')"><span class="nav-icon">▦</span>Inventory</button>
       <button class="nav-item" onclick="nav(this,'pos')"><span class="nav-icon">⊞</span>Sell / POS</button>
@@ -197,7 +222,8 @@ tbody tr:hover{background:var(--surface2);}
       <button class="nav-item" onclick="nav(this,'sup')"><span class="nav-icon">⊟</span>Suppliers</button>
     </div>
     <div class="sidebar-bottom">
-      <div class="user-block"><div class="user-avatar">SH</div><div><div class="user-name">Shop Owner</div><div class="user-role">Admin</div></div></div>
+      <div class="user-block"><div class="user-avatar" id="user-avatar">SH</div><div style="min-width:0;flex:1;"><div class="user-name" id="user-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Shop Owner</div><div class="user-role">Admin</div></div></div>
+      <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;margin-top:10px;" onclick="doLogout()">⎋ Log out</button>
       <div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:8px;">MedTrack v1.2.0</div>
     </div>
   </div>
@@ -223,7 +249,7 @@ tbody tr:hover{background:var(--surface2);}
       </div>
       <div class="card">
         <div class="card-title">Quick Actions</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <div class="quick-actions-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
           <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="nav(document.querySelectorAll('.nav-item')[2],'pos')">⊞ New sale</button>
           <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="nav(document.querySelectorAll('.nav-item')[1],'inv')">▦ Inventory</button>
           <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="nav(document.querySelectorAll('.nav-item')[4],'rep')">◉ Reports</button>
@@ -371,14 +397,21 @@ function doLogin(){
     errEl.style.display='block';
   });
 }
+function doLogout(){
+  if(confirm('Log out of MedTrack?')){ fauth.signOut(); }
+}
 
 fauth.onAuthStateChanged(user=>{
   const overlay=document.getElementById('login-overlay');
   if(user){
     overlay.style.display='none';
+    document.getElementById('user-name').textContent = user.email || 'Signed in';
+    document.getElementById('user-avatar').textContent = (user.email||'?').slice(0,2).toUpperCase();
     if(!firestoreReady){ firestoreReady=true; startApp(); }
   } else {
     overlay.style.display='flex';
+    document.getElementById('login-email').value='';
+    document.getElementById('login-pass').value='';
   }
 });
 const PRODUCTS_COL = fdb.collection('products');
